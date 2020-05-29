@@ -67,7 +67,7 @@ static std::string string_ncopy(const char* buffer, std::size_t buffer_size) {
 static
 int get_fb_seq_num(cls_method_context_t hctx, unsigned int& fb_seq_num) {
 
-    bufferlist fb_bl;
+    buffer::list fb_bl;
     int ret = cls_cxx_getxattr(hctx, "fb_seq_num", &fb_bl);
     if (ret == -ENOENT || ret == -ENODATA) {
         fb_seq_num = Tables::DATASTRUCT_SEQ_NUM_MIN;
@@ -78,7 +78,7 @@ int get_fb_seq_num(cls_method_context_t hctx, unsigned int& fb_seq_num) {
     }
     else {
         try {
-            bufferlist::iterator it = fb_bl.begin();
+            buffer::list::iterator it = fb_bl.begin();
             ::decode(fb_seq_num,it);
         } catch (const buffer::error &err) {
             CLS_ERR("ERROR: cls_tabular:get_fb_seq_num: decoding fb_seq_num");
@@ -93,7 +93,7 @@ int get_fb_seq_num(cls_method_context_t hctx, unsigned int& fb_seq_num) {
 static
 int set_fb_seq_num(cls_method_context_t hctx, unsigned int fb_seq_num) {
 
-    bufferlist fb_bl;
+    buffer::list fb_bl;
     ::encode(fb_seq_num, fb_bl);
     int ret = cls_cxx_setxattr(hctx, "fb_seq_num", &fb_bl);
     if (ret < 0) {
@@ -115,7 +115,7 @@ int set_fb_seq_num(cls_method_context_t hctx, unsigned int fb_seq_num) {
  *
  */
 static
-int exec_build_sky_index_op(cls_method_context_t hctx, bufferlist *in, bufferlist *out)
+int exec_build_sky_index_op(cls_method_context_t hctx, buffer::list *in, buffer::list *out)
 {
     // iterate over all fbs within an obj and create 2 indexes:
     // 1. for each fb, create idx_fb_entry (physical fb offset)
@@ -138,15 +138,15 @@ int exec_build_sky_index_op(cls_method_context_t hctx, bufferlist *in, bufferlis
     std::string key_data_prefix;
     std::string key_data;
     std::string key;
-    std::map<std::string, bufferlist> fbs_index;
-    std::map<std::string, bufferlist> recs_index;
-    std::map<std::string, bufferlist> rids_index;
-    std::map<std::string, bufferlist> txt_index;
+    std::map<std::string, buffer::list> fbs_index;
+    std::map<std::string, buffer::list> recs_index;
+    std::map<std::string, buffer::list> rids_index;
+    std::map<std::string, buffer::list> txt_index;
 
     // extract the index op instructions from the input bl
     idx_op op;
     try {
-        bufferlist::iterator it = in->begin();
+        buffer::list::iterator it = in->begin();
         ::decode(op, it);
     } catch (const buffer::error &err) {
         CLS_ERR("ERROR: exec_build_sky_index_op decoding idx_op");
@@ -155,7 +155,7 @@ int exec_build_sky_index_op(cls_method_context_t hctx, bufferlist *in, bufferlis
     Tables::schema_vec idx_schema = Tables::schemaFromString(op.idx_schema_str);
 
     // obj contains one bl that itself wraps a seq of encoded bls of skyhook fb
-    bufferlist wrapped_bls;
+    buffer::list wrapped_bls;
     ret = cls_cxx_read(hctx, 0, 0, &wrapped_bls);
     if (ret < 0) {
         CLS_ERR("ERROR: exec_build_sky_index_op: reading obj. %d", ret);
@@ -164,11 +164,11 @@ int exec_build_sky_index_op(cls_method_context_t hctx, bufferlist *in, bufferlis
 
     // decode and process each wrapped bl (each bl contains 1 flatbuf)
     uint64_t off = 0;
-    ceph::bufferlist::iterator it = wrapped_bls.begin();
+    ceph::buffer::list::iterator it = wrapped_bls.begin();
     uint64_t obj_len = it.get_remaining();
     while (it.get_remaining() > 0) {
         off = obj_len - it.get_remaining();
-        ceph::bufferlist bl;
+        ceph::buffer::list bl;
         try {
             ::decode(bl, it);  // unpack the next bl
         } catch (ceph::buffer::error&) {
@@ -192,8 +192,8 @@ int exec_build_sky_index_op(cls_method_context_t hctx, bufferlist *in, bufferlis
         int pos = len - 10;
         key_data = str_seq_num.substr(pos, len);
 
-        // IDX_FB create the entry struct, encode into bufferlist
-        bufferlist fb_bl;
+        // IDX_FB create the entry struct, encode into buffer::list
+        buffer::list fb_bl;
         struct idx_fb_entry fb_ent(off, fb_len + ceph_bl_encoding_len);
         ::encode(fb_ent, fb_bl);
         key = key_fb_prefix + key_data;
@@ -234,8 +234,8 @@ int exec_build_sky_index_op(cls_method_context_t hctx, bufferlist *in, bufferlis
                     // key_data is just the RID val
                     key_data = Tables::u64tostr(rec.RID);
 
-                    // create the entry, encode into bufferlist, update map
-                    bufferlist rec_bl;
+                    // create the entry, encode into buffer::list, update map
+                    buffer::list rec_bl;
                     struct idx_rec_entry rec_ent(fb_seq_num, i, rec.RID);
                     ::encode(rec_ent, rec_bl);
                     key = key_data_prefix + key_data;
@@ -263,8 +263,8 @@ int exec_build_sky_index_op(cls_method_context_t hctx, bufferlist *in, bufferlis
                                      std::to_string(rec.RID));
                     }
 
-                    // create the entry, encode into bufferlist, update map
-                    bufferlist rec_bl;
+                    // create the entry, encode into buffer::list, update map
+                    buffer::list rec_bl;
                     struct idx_rec_entry rec_ent(fb_seq_num, i, rec.RID);
                     ::encode(rec_ent, rec_bl);
                     key = key_data_prefix + key_data;
@@ -327,8 +327,8 @@ int exec_build_sky_index_op(cls_method_context_t hctx, bufferlist *in, bufferlis
                         key_data += (Tables::IDX_KEY_DELIM_INNER +
                                      std::to_string(word_pos));
 
-                        // create the entry, encode into bufferlist, update map
-                        bufferlist txt_bl;
+                        // create the entry, encode into buffer::list, update map
+                        buffer::list txt_bl;
                         struct idx_txt_entry txt_ent(fb_seq_num, i,
                                                      rec.RID, word_pos);
                         ::encode(txt_ent, txt_bl);
@@ -415,9 +415,9 @@ int exec_build_sky_index_op(cls_method_context_t hctx, bufferlist *in, bufferlis
     // LASTLY insert a marker key to indicate this index exists,
     // here we are using the key prefix with no data vals
     // TODO: make this a valid entry (not empty_bl), but with empty vals.
-    bufferlist empty_bl;
+    buffer::list empty_bl;
     empty_bl.append("");
-    std::map<std::string, bufferlist> index_exists_marker;
+    std::map<std::string, buffer::list> index_exists_marker;
     index_exists_marker[key_data_prefix] = empty_bl;
     ret = cls_cxx_map_set_vals(hctx, &index_exists_marker);
     if (ret < 0) {
@@ -433,19 +433,19 @@ int exec_build_sky_index_op(cls_method_context_t hctx, bufferlist *in, bufferlis
  * Index contains <k=primarykey, v=offset of row within BL>
  */
 static
-int build_index(cls_method_context_t hctx, bufferlist *in, bufferlist *out)
+int build_index(cls_method_context_t hctx, buffer::list *in, buffer::list *out)
 {
   uint32_t batch_size;
 
   try {
-    bufferlist::iterator it = in->begin();
+    buffer::list::iterator it = in->begin();
     ::decode(batch_size, it);
   } catch (const buffer::error &err) {
     CLS_ERR("ERROR: decoding batch_size");
     return -EINVAL;
   }
 
-  bufferlist bl;
+  buffer::list bl;
   int ret = cls_cxx_read(hctx, 0, 0, &bl);
   if (ret < 0) {
     CLS_ERR("ERROR: reading obj %d", ret);
@@ -460,7 +460,7 @@ int build_index(cls_method_context_t hctx, bufferlist *in, bufferlist *out)
   const size_t line_number_field_offset = 12;
 
 
-  std::map<string, bufferlist> index;
+  std::map<string, buffer::list> index;
   // read all rows and extract the key fields
   for (size_t rid = 0; rid < num_rows; rid++) {
     const char *row = rows + rid * row_size;
@@ -475,7 +475,7 @@ int build_index(cls_method_context_t hctx, bufferlist *in, bufferlist *out)
     const std::string strkey = Tables::u64tostr(key);
 
     // val
-    bufferlist row_offset_bl;
+    buffer::list row_offset_bl;
     const size_t row_offset = rid * row_size;
     ::encode(row_offset, row_offset_bl);
 
@@ -521,14 +521,14 @@ int
 update_idx_reads(
     cls_method_context_t hctx,
     std::map<int, struct Tables::read_info>& idx_reads,
-    bufferlist bl,
+    buffer::list bl,
     std::string key_fb_prefix,
     std::string key_data_prefix) {
 
     struct idx_rec_entry rec_ent;
     int ret = 0;
     try {
-        bufferlist::iterator it = bl.begin();
+        buffer::list::iterator it = bl.begin();
         ::decode(rec_ent, it);
     } catch (const buffer::error &err) {
         CLS_ERR("ERROR: decoding query idx_rec_ent");
@@ -543,7 +543,7 @@ update_idx_reads(
     std::string key_data = Tables::buildKeyData(Tables::SDT_INT32, rec_ent.fb_num);
     std::string key = key_fb_prefix + key_data;
     struct idx_fb_entry fb_ent;
-    bufferlist bl1;
+    buffer::list bl1;
     ret = cls_cxx_map_get_val(hctx, key, &bl1);
 
     if (ret < 0) {
@@ -558,7 +558,7 @@ update_idx_reads(
 
     if (ret >= 0) {
         try {
-            bufferlist::iterator it = bl1.begin();
+            buffer::list::iterator it = bl1.begin();
             ::decode(fb_ent, it);
         } catch (const buffer::error &err) {
             CLS_ERR("ERROR: decoding query idx_fb_ent");
@@ -618,7 +618,7 @@ read_fbs_index(
         std::string key_data = Tables::buildKeyData(Tables::SDT_INT32, i);
         std::string key = key_fb_prefix + key_data;
 
-        bufferlist bl;
+        buffer::list bl;
         ret = cls_cxx_map_get_val(hctx, key, &bl);
 
         // a seq_num may not be present due to fb deleted/compaction
@@ -639,7 +639,7 @@ read_fbs_index(
             // CLS_LOG(20, "omap entry found for key=%s", key.c_str());
             struct idx_fb_entry fb_ent;
             try {
-                bufferlist::iterator it = bl.begin();
+                buffer::list::iterator it = bl.begin();
                 ::decode(fb_ent, it);
             } catch (const buffer::error &err) {
                 CLS_ERR("ERROR: decoding idx_fb_ent for key=%s", key.c_str());
@@ -665,8 +665,8 @@ static
 bool
 sky_index_exists (cls_method_context_t hctx, std::string key_prefix)
 {
-    std::map<std::string, bufferlist> key_val_map;
-    bufferlist dummy_bl;
+    std::map<std::string, buffer::list> key_val_map;
+    buffer::list dummy_bl;
     int ret = cls_cxx_map_get_val(hctx, key_prefix, &dummy_bl);
     if (ret < 0 && ret != -ENOENT) {
         CLS_ERR("Cannot read idx_rec entry for key, errorcode=%d", ret);
@@ -698,7 +698,7 @@ use_sky_index(
     // we assume to use by default, since the planner requested it.
     bool use_index = true;
 
-    bufferlist bl;
+    buffer::list bl;
     int ret = cls_cxx_map_get_val(hctx, index_prefix, &bl);
     if (ret < 0 && ret != -ENOENT) {
         CLS_ERR("Cannot read idx_rec entry for key, errorcode=%d", ret);
@@ -815,7 +815,7 @@ read_sky_index(
     // until no more keys
     bool more = true;
     int max_to_get = idx_batch_size;
-    std::map<std::string, bufferlist> key_val_map;
+    std::map<std::string, buffer::list> key_val_map;
     while(!stop) {
         ret2 = cls_cxx_map_get_vals(hctx, start_after, string(),
                                     max_to_get, &key_val_map, &more);
@@ -835,7 +835,7 @@ read_sky_index(
                 for (auto it = key_val_map.cbegin();
                           it != key_val_map.cend(); it++) {
                     const std::string& key1 = it->first;
-                    bufferlist record_bl_entry = it->second;
+                    buffer::list record_bl_entry = it->second;
 
                     // Break if keyprefix in fetched key does not match that
                     // passed by user, means we have gone too far, possibly
@@ -898,7 +898,7 @@ read_sky_index(
     // lookup key in omap to get the row offset
     if (!keys.empty()) {
         for (unsigned i = 0; i < keys.size(); i++) {
-            bufferlist record_bl_entry;
+            buffer::list record_bl_entry;
             ret = cls_cxx_map_get_val(hctx, keys[i], &record_bl_entry);
             if (ret < 0 && ret != -ENOENT) {
                 CLS_ERR("cant read map val index rec for idx_rec key %d", ret);
@@ -924,7 +924,7 @@ read_sky_index(
  * Primary method to process queries
  */
 static
-int exec_query_op(cls_method_context_t hctx, bufferlist *in, bufferlist *out)
+int exec_query_op(cls_method_context_t hctx, buffer::list *in, buffer::list *out)
 {
     int ret = 0;
 
@@ -935,14 +935,14 @@ int exec_query_op(cls_method_context_t hctx, bufferlist *in, bufferlist *out)
     uint64_t eval_ns = 0;
 
     // result set to be returned to client.
-    bufferlist result_bl;
+    buffer::list result_bl;
 
     // contains the serialized user request.
     query_op op;
 
     // extract the query op to get the query request params
     try {
-        bufferlist::iterator it = in->begin();
+        buffer::list::iterator it = in->begin();
         ::decode(op, it);
     } catch (const buffer::error &err) {
         CLS_ERR("ERROR: exec_query_op: decoding query op failed");
@@ -1302,7 +1302,7 @@ int exec_query_op(cls_method_context_t hctx, bufferlist *in, bufferlist *out)
     for (auto it = reads.begin(); it != reads.end(); ++it) {
 
         // get an off len to read from the object.
-        bufferlist b;
+        buffer::list b;
         size_t off = it->second.off;
         size_t len = it->second.len;
         std::vector<unsigned int> row_nums = it->second.rnums;
@@ -1321,7 +1321,7 @@ int exec_query_op(cls_method_context_t hctx, bufferlist *in, bufferlist *out)
 
         // begin processing, so we record the evaluation time.
         eval_start = getns();
-        ceph::bufferlist::iterator data_itr = b.begin();
+        ceph::buffer::list::iterator data_itr = b.begin();
         while (data_itr.get_remaining() > 0) {
 
             // unpack the next data stucture (ds) in sequence
@@ -1331,7 +1331,7 @@ int exec_query_op(cls_method_context_t hctx, bufferlist *in, bufferlist *out)
             // where bl2=fbmeta
             // ...
 
-            bufferlist data;
+            buffer::list data;
             try {
                 ::decode(data, data_itr);
             } catch (const buffer::error &err) {
@@ -1543,7 +1543,7 @@ int exec_query_op(cls_method_context_t hctx, bufferlist *in, bufferlist *out)
 
             } // end switch
 
-            // add meta_builder's data into the result bufferlist as char*
+            // add meta_builder's data into the result buffer::list as char*
             result_bl.append(reinterpret_cast<const char*>( \
                              fbmeta_builder->GetBufferPointer()),
                              fbmeta_builder->GetSize()
@@ -1574,17 +1574,17 @@ int exec_query_op(cls_method_context_t hctx, bufferlist *in, bufferlist *out)
  * Older test method to process queries a through f
  */
 static
-int test_query_op(cls_method_context_t hctx, bufferlist *in, bufferlist *out)
+int test_query_op(cls_method_context_t hctx, buffer::list *in, buffer::list *out)
 {
     int ret = 0;
     uint64_t read_ns = 0;
     uint64_t eval_ns = 0;
-    bufferlist result_bl;  // result set to be returned to client.
+    buffer::list result_bl;  // result set to be returned to client.
     test_op op;
 
     // extract the query op to get the query request params
     try {
-        bufferlist::iterator it = in->begin();
+        buffer::list::iterator it = in->begin();
         ::decode(op, it);
     } catch (const buffer::error &err) {
         CLS_ERR("ERROR: decoding query op");
@@ -1592,7 +1592,7 @@ int test_query_op(cls_method_context_t hctx, bufferlist *in, bufferlist *out)
     }
 
     // older processing here.
-    bufferlist bl;
+    buffer::list bl;
     if (op.query != "d" || !op.use_index) {
         uint64_t start = getns();
         ret = cls_cxx_read(hctx, 0, 0, &bl);  // read entire object.
@@ -1697,7 +1697,7 @@ int test_query_op(cls_method_context_t hctx, bufferlist *in, bufferlist *out)
             const std::string strkey = Tables::u64tostr(key);
 
             // key lookup in omap to get the row offset
-            bufferlist row_offset_bl;
+            buffer::list row_offset_bl;
             ret = cls_cxx_map_get_val(hctx, strkey, &row_offset_bl);
             if (ret < 0 && ret != -ENOENT) {
                 CLS_ERR("cant read map val index %d", ret);
@@ -1706,7 +1706,7 @@ int test_query_op(cls_method_context_t hctx, bufferlist *in, bufferlist *out)
 
             if (ret >= 0) {  // found key
                 size_t row_offset;
-                bufferlist::iterator it = row_offset_bl.begin();
+                buffer::list::iterator it = row_offset_bl.begin();
                 try {
                     ::decode(row_offset, it);
                 } catch (const buffer::error &err) {
@@ -1726,7 +1726,7 @@ int test_query_op(cls_method_context_t hctx, bufferlist *in, bufferlist *out)
                 }
 
                 // read just the row
-                bufferlist bl;
+                buffer::list bl;
                 ret = cls_cxx_read(hctx, row_offset, row_size, &bl);
                 if (ret < 0) {
                     CLS_ERR("ERROR: reading obj %d", ret);
@@ -1896,12 +1896,12 @@ int test_query_op(cls_method_context_t hctx, bufferlist *in, bufferlist *out)
 }
 
 static
-int exec_runstats_op(cls_method_context_t hctx, bufferlist *in, bufferlist *out)
+int exec_runstats_op(cls_method_context_t hctx, buffer::list *in, buffer::list *out)
 {
     // unpack the requested op from the inbl.
     stats_op op;
     try {
-        bufferlist::iterator it = in->begin();
+        buffer::list::iterator it = in->begin();
         ::decode(op, it);
     } catch (const buffer::error &err) {
         CLS_ERR("ERROR: cls_tabular:exec_stats_op: decoding stats_op");
@@ -1925,19 +1925,19 @@ int exec_runstats_op(cls_method_context_t hctx, bufferlist *in, bufferlist *out)
  * Function: transform_db_op
  * Description: Method to convert database format.
  * @param[in] hctx    : CLS method context
- * @param[out] in     : input bufferlist
- * @param[out] out    : output bufferlist
+ * @param[out] in     : input buffer::list
+ * @param[out] out    : output buffer::list
  * Return Value: error code
 */
 static
-int transform_db_op(cls_method_context_t hctx, bufferlist *in, bufferlist *out)
+int transform_db_op(cls_method_context_t hctx, buffer::list *in, buffer::list *out)
 {
     transform_op op;
     int offset = 0;
 
     // unpack the requested op from the inbl.
     try {
-        bufferlist::iterator it = in->begin();
+        buffer::list::iterator it = in->begin();
         ::decode(op, it);
     } catch (const buffer::error &err) {
         CLS_ERR("ERROR: cls_tabular:transform_db_op: decoding transform_op");
@@ -1952,7 +1952,7 @@ int transform_db_op(cls_method_context_t hctx, bufferlist *in, bufferlist *out)
     Tables::schema_vec query_schema = Tables::schemaFromString(op.query_schema);
 
     // Object is sequence of actual data along with encoded metadata
-    bufferlist encoded_meta_bls;
+    buffer::list encoded_meta_bls;
 
     // TODO: get individual off/len of fbmeta's inside obj and read one at a time.
     int ret = cls_cxx_read(hctx, 0, 0, &encoded_meta_bls);
@@ -1962,10 +1962,10 @@ int transform_db_op(cls_method_context_t hctx, bufferlist *in, bufferlist *out)
     }
 
     using namespace Tables;
-    ceph::bufferlist::iterator it = encoded_meta_bls.begin();
+    ceph::buffer::list::iterator it = encoded_meta_bls.begin();
     while (it.get_remaining() > 0) {
-        bufferlist bl;
-        bufferlist transformed_encoded_meta_bl;
+        buffer::list bl;
+        buffer::list transformed_encoded_meta_bl;
         try {
             ::decode(bl, it);  // unpack the next bl
         } catch (const buffer::error &err) {
@@ -2036,8 +2036,8 @@ int transform_db_op(cls_method_context_t hctx, bufferlist *in, bufferlist *out)
                          flatbldr.GetSize());
         }
 
-        // Add meta_builder's data into a bufferlist as char*
-        bufferlist meta_bl;
+        // Add meta_builder's data into a buffer::list as char*
+        buffer::list meta_bl;
         meta_bl.append(reinterpret_cast<const char*>(                   \
                                meta_builder->GetBufferPointer()),
                        meta_builder->GetSize());
@@ -2059,12 +2059,12 @@ int transform_db_op(cls_method_context_t hctx, bufferlist *in, bufferlist *out)
 
 
 static
-int example_query_op(cls_method_context_t hctx, bufferlist *in, bufferlist *out)
+int example_query_op(cls_method_context_t hctx, buffer::list *in, buffer::list *out)
 {
     // unpack the requested op from the inbl.
     inbl_sample_op op;
     try {
-        bufferlist::iterator it = in->begin();
+        buffer::list::iterator it = in->begin();
         ::decode(op, it);
     } catch (const buffer::error &err) {
         CLS_ERR("ERROR: cls_tabular:example_query_op: decoding inbl_sample_op");
@@ -2115,7 +2115,7 @@ int example_query_op(cls_method_context_t hctx, bufferlist *in, bufferlist *out)
     ::encode(info, *out);
 
     // encode result data for client.
-    bufferlist result_bl;
+    buffer::list result_bl;
     result_bl.append("result data goes into result bl.");
     ::encode(result_bl, *out);
 
@@ -2123,12 +2123,12 @@ int example_query_op(cls_method_context_t hctx, bufferlist *in, bufferlist *out)
 }
 
 static
-int wasm_query_op(cls_method_context_t hctx, bufferlist *in, bufferlist *out)
+int wasm_query_op(cls_method_context_t hctx, buffer::list *in, buffer::list *out)
 {
     // unpack the requested op from the inbl.
     inbl_sample_op op;
     try {
-        bufferlist::iterator it = in->begin();
+        buffer::list::iterator it = in->begin();
         ::decode(op, it);
     } catch (const buffer::error &err) {
         CLS_ERR("ERROR: cls_tabular:example_query_op: decoding inbl_sample_op");
@@ -2179,7 +2179,7 @@ int wasm_query_op(cls_method_context_t hctx, bufferlist *in, bufferlist *out)
     ::encode(info, *out);
 
     // encode result data for client.
-    bufferlist result_bl;
+    buffer::list result_bl;
     result_bl.append("result data goes into result bl.");
     ::encode(result_bl, *out);
 
@@ -2187,7 +2187,7 @@ int wasm_query_op(cls_method_context_t hctx, bufferlist *in, bufferlist *out)
 }
 
 
-static int lock_obj_init_op(cls_method_context_t hctx, bufferlist *in, bufferlist *out)
+static int lock_obj_init_op(cls_method_context_t hctx, buffer::list *in, buffer::list *out)
 {
     bool skipCreate = false;
     if (cls_cxx_stat(hctx, NULL, NULL) == 0)
@@ -2196,7 +2196,7 @@ static int lock_obj_init_op(cls_method_context_t hctx, bufferlist *in, bufferlis
     lockobj_info op_in;
 
     try {
-        bufferlist::iterator it = in->begin();
+        buffer::list::iterator it = in->begin();
         ::decode(op_in, it);
     } catch (const buffer::error &err) {
         CLS_ERR("ERROR: cls_tabular: lock_obj_init_op: decoding inbl_lockobj_op");
@@ -2210,7 +2210,7 @@ static int lock_obj_init_op(cls_method_context_t hctx, bufferlist *in, bufferlis
           return r;
      }
 
-     std::map<std::string, bufferlist> table_obj_map;
+     std::map<std::string, buffer::list> table_obj_map;
      int ret;
 
      table_obj_map[op_in.table_name]=*in;
@@ -2219,14 +2219,14 @@ static int lock_obj_init_op(cls_method_context_t hctx, bufferlist *in, bufferlis
      if (ret < 0)
          return ret;
 
-     bufferlist result_bl;
+     buffer::list result_bl;
      ::encode(ret, *out);
      result_bl.append("Created Special Ceph Object");
      ::encode(result_bl, *out);
      return 0;
 }
 
-static int lock_obj_create_op(cls_method_context_t hctx, bufferlist *in, bufferlist *out)
+static int lock_obj_create_op(cls_method_context_t hctx, buffer::list *in, buffer::list *out)
 {
     if (cls_cxx_stat(hctx, NULL, NULL) == 0)
         return -EEXIST;
@@ -2234,7 +2234,7 @@ static int lock_obj_create_op(cls_method_context_t hctx, bufferlist *in, bufferl
     lockobj_info op;
 
     try {
-      bufferlist::iterator it = in->begin();
+      buffer::list::iterator it = in->begin();
       ::decode(op, it);
     } catch (const buffer::error &err) {
       CLS_ERR("ERROR: cls_tabular: lock_obj_create_op: decoding inbl_lockobj_op");
@@ -2249,12 +2249,12 @@ static int lock_obj_create_op(cls_method_context_t hctx, bufferlist *in, bufferl
     return 0;
   }
 static
-int lock_obj_free_op(cls_method_context_t hctx, bufferlist *in, bufferlist *out)
+int lock_obj_free_op(cls_method_context_t hctx, buffer::list *in, buffer::list *out)
 {
     lockobj_info op_in;
 
     try {
-        bufferlist::iterator it = in->begin();
+        buffer::list::iterator it = in->begin();
         ::decode(op_in, it);
     } catch (const buffer::error &err) {
         CLS_ERR("ERROR: cls_tabular: lock_obj_get_op: decoding inbl_lockobj_op");
@@ -2264,13 +2264,13 @@ int lock_obj_free_op(cls_method_context_t hctx, bufferlist *in, bufferlist *out)
     std::string table_name = op_in.table_name;
     using namespace Tables;
     int ret;
-    bufferlist bl_entry2;
+    buffer::list bl_entry2;
     ret = cls_cxx_map_get_val(hctx, table_name, &bl_entry2);
     if (ret < 0)
       return ret;
     lockobj_info op_out;
     try {
-        bufferlist::iterator it = bl_entry2.begin();
+        buffer::list::iterator it = bl_entry2.begin();
         ::decode(op_out, it);
     } catch (const buffer::error &err) {
         CLS_ERR("ERROR: cls_tabular:init_lock_obj_query_op: decoding inbl_lockobj_op");
@@ -2278,7 +2278,7 @@ int lock_obj_free_op(cls_method_context_t hctx, bufferlist *in, bufferlist *out)
     }
     CLS_LOG(20, "lock_obj_free_op 1: op_out.table_busy = %d", op_out.table_busy);
     CLS_LOG(20, "lock_obj_free_op 1: op_out.table_name=%s", op_out.table_name.c_str());
-    std::map<std::string, bufferlist> table_obj_map;
+    std::map<std::string, buffer::list> table_obj_map;
 
     /* NOTE: If already free skip setting it here */
     if (op_out.table_busy) {
@@ -2294,12 +2294,12 @@ int lock_obj_free_op(cls_method_context_t hctx, bufferlist *in, bufferlist *out)
 }
 
 static
-int lock_obj_get_op(cls_method_context_t hctx, bufferlist *in, bufferlist *out)
+int lock_obj_get_op(cls_method_context_t hctx, buffer::list *in, buffer::list *out)
 {
     lockobj_info op_in;
 
     try {
-        bufferlist::iterator it = in->begin();
+        buffer::list::iterator it = in->begin();
         ::decode(op_in, it);
     } catch (const buffer::error &err) {
         CLS_ERR("ERROR: cls_tabular: lock_obj_get_op: decoding inbl_lockobj_op");
@@ -2318,13 +2318,13 @@ int lock_obj_get_op(cls_method_context_t hctx, bufferlist *in, bufferlist *out)
 
 
     int ret;
-    bufferlist bl_entry;
+    buffer::list bl_entry;
     ret = cls_cxx_map_get_val(hctx, table_name, &bl_entry);
     if (ret < 0)
       return ret;
     lockobj_info op_out;
     try {
-        bufferlist::iterator it = bl_entry.begin();
+        buffer::list::iterator it = bl_entry.begin();
         ::decode(op_out, it);
     } catch (const buffer::error &err) {
         CLS_ERR("ERROR: cls_tabular:init_lock_obj_query_op: decoding inbl_lockobj_op");
@@ -2334,19 +2334,19 @@ int lock_obj_get_op(cls_method_context_t hctx, bufferlist *in, bufferlist *out)
     CLS_LOG(20, "lock_obj_get_op: op_out.table_name = %s", op_out.table_name.c_str());
     CLS_LOG(20, "lock_obj_get_op: op_out.table_group = %s", op_out.table_group.c_str());
     CLS_LOG(20, "lock_obj_get_op: op_out.nobjs = %d", op_out.num_objs);
-    bufferlist result_bl;
+    buffer::list result_bl;
     result_bl.append("result data goes into result bl.");
     ::encode(op_out, *out);
     return 0;
 }
 
 static
-int lock_obj_acquire_op(cls_method_context_t hctx, bufferlist *in, bufferlist *out)
+int lock_obj_acquire_op(cls_method_context_t hctx, buffer::list *in, buffer::list *out)
 {
     lockobj_info op_in;
 
     try {
-        bufferlist::iterator it = in->begin();
+        buffer::list::iterator it = in->begin();
         ::decode(op_in, it);
     } catch (const buffer::error &err) {
         CLS_ERR("ERROR 1: cls_tabular:init_lock_obj_query_op: decoding inbl_lockobj_op");
@@ -2363,7 +2363,7 @@ int lock_obj_acquire_op(cls_method_context_t hctx, bufferlist *in, bufferlist *o
     using namespace Tables;
     int ret;
 
-    bufferlist bl_entry;
+    buffer::list bl_entry;
     ret = cls_cxx_map_get_val(hctx, table_name, &bl_entry);
 
     if (ret < 0)
@@ -2371,7 +2371,7 @@ int lock_obj_acquire_op(cls_method_context_t hctx, bufferlist *in, bufferlist *o
 
     lockobj_info op_out;
     try {
-        bufferlist::iterator it = bl_entry.begin();
+        buffer::list::iterator it = bl_entry.begin();
         ::decode(op_out, it);
     } catch (const buffer::error &err) {
         CLS_ERR("ERROR 2: cls_tabular:init_lock_obj_query_op: decoding init_lockobj_op");
@@ -2385,9 +2385,9 @@ int lock_obj_acquire_op(cls_method_context_t hctx, bufferlist *in, bufferlist *o
 
     if(!op_out.table_busy) {
         op_out.table_busy=!op_out.table_busy;
-	bufferlist bflst;
+	buffer::list bflst;
 	::encode(op_out, bflst);
-        std::map<std::string, bufferlist> table_obj_map;
+        std::map<std::string, buffer::list> table_obj_map;
         table_obj_map[op_out.table_name]=bflst;
         ret = cls_cxx_map_set_vals(hctx, &table_obj_map);
     }

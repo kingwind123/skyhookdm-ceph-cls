@@ -18,9 +18,8 @@
 #include <rados/objclass.h>
 #include <rados/buffer.h>
 
-#include <rados/>
-
-using ceph::bufferlist;
+using ceph::buffer;
+using ceph::buffer::list;
 
 void cls_log_message(std::string msg, bool is_err, int log_level);
 
@@ -143,8 +142,8 @@ struct query_op {
 
   query_op() {}
 
-  // serialize the fields into bufferlist to be sent over the wire
-  void encode(bufferlist& bl) const {
+  // serialize the fields into buffer::list to be sent over the wire
+  void encode(buffer::list& bl) const {
     ENCODE_START(1, 1, bl);
     ::encode(debug, bl);
     ::encode(query, bl);
@@ -168,8 +167,8 @@ struct query_op {
     ENCODE_FINISH(bl);
   }
 
-  // deserialize the fields from the bufferlist into this struct
-  void decode(bufferlist::iterator& bl) {
+  // deserialize the fields from the buffer::list into this struct
+  void decode(buffer::list::iterator& bl) {
     DECODE_START(1, bl);
     ::decode(debug, bl);
     ::decode(query, bl);
@@ -238,8 +237,8 @@ struct test_op {
 
   test_op() {}
 
-  // serialize the fields into bufferlist to be sent over the wire
-  void encode(bufferlist& bl) const {
+  // serialize the fields into buffer::list to be sent over the wire
+  void encode(buffer::list& bl) const {
     ENCODE_START(1, 1, bl);
     ::encode(query, bl);
     ::encode(extended_price, bl);
@@ -258,8 +257,8 @@ struct test_op {
     ENCODE_FINISH(bl);
   }
 
-  // deserialize the fields from the bufferlist into this struct
-  void decode(bufferlist::iterator& bl) {
+  // deserialize the fields from the buffer::list into this struct
+  void decode(buffer::list::iterator& bl) {
     DECODE_START(1, bl);
     ::decode(query, bl);
     ::decode(extended_price, bl);
@@ -311,8 +310,8 @@ struct stats_op {
   stats_op(std::string dbscma, std::string tname, std::string dtscma) :
            db_schema(dbscma), table_name(tname), data_schema(dtscma) { }
 
-  // serialize the fields into bufferlist to be sent over the wire
-  void encode(bufferlist& bl) const {
+  // serialize the fields into buffer::list to be sent over the wire
+  void encode(buffer::list& bl) const {
     ENCODE_START(1, 1, bl);
     ::encode(db_schema, bl);
     ::encode(table_name, bl);
@@ -320,8 +319,8 @@ struct stats_op {
     ENCODE_FINISH(bl);
   }
 
-  // deserialize the fields from the bufferlist into this struct
-  void decode(bufferlist::iterator& bl) {
+  // deserialize the fields from the buffer::list into this struct
+  void decode(buffer::list::iterator& bl) {
     DECODE_START(1, bl);
     ::decode(db_schema, bl);
     ::decode(table_name, bl);
@@ -350,8 +349,8 @@ struct transform_op {
   transform_op(std::string tname, std::string qrscma, int req_type) :
     table_name(tname), query_schema(qrscma), required_type(req_type) { }
 
-  // serialize the fields into bufferlist to be sent over the wire
-  void encode(bufferlist& bl) const {
+  // serialize the fields into buffer::list to be sent over the wire
+  void encode(buffer::list& bl) const {
     ENCODE_START(1, 1, bl);
     ::encode(table_name, bl);
     ::encode(query_schema, bl);
@@ -359,8 +358,8 @@ struct transform_op {
     ENCODE_FINISH(bl);
   }
 
-  // deserialize the fields from the bufferlist into this struct
-  void decode(bufferlist::iterator& bl) {
+  // deserialize the fields from the buffer::list into this struct
+  void decode(buffer::list::iterator& bl) {
     DECODE_START(1, bl);
     ::decode(table_name, bl);
     ::decode(query_schema, bl);
@@ -403,8 +402,8 @@ struct hep_file_metadata {
         tfile_header(_tfile_header),
         file_schema(_file_schema) { }
 
-  // serialize the fields into bufferlist to be sent over the wire
-  void encode(bufferlist& bl) const {
+  // serialize the fields into buffer::list to be sent over the wire
+  void encode(buffer::list& bl) const {
     ENCODE_START(1, 1, bl);
     ::encode(dataset_name, bl);
     ::encode(tfile_header, bl);
@@ -412,8 +411,8 @@ struct hep_file_metadata {
     ENCODE_FINISH(bl);
   }
 
-  // deserialize the fields from the bufferlist into this struct
-  void decode(bufferlist::iterator& bl) {
+  // deserialize the fields from the buffer::list into this struct
+  void decode(buffer::list::iterator& bl) {
     DECODE_START(1, bl);
     ::decode(dataset_name, bl);
     ::decode(tfile_header, bl);
@@ -456,8 +455,8 @@ struct hep_query_op {
         orig_off(_orig_off),
         orig_len(_orig_len)  { }
 
-  // serialize the fields into bufferlist to be sent over the wire
-  void encode(bufferlist& bl) const {
+  // serialize the fields into buffer::list to be sent over the wire
+  void encode(buffer::list& bl) const {
     ENCODE_START(1, 1, bl);
     ::encode(query_schema, bl);
     ::encode(is_compressed, bl);
@@ -467,8 +466,8 @@ struct hep_query_op {
     ENCODE_FINISH(bl);
   }
 
-  // deserialize the fields from the bufferlist into this struct
-  void decode(bufferlist::iterator& bl) {
+  // deserialize the fields from the buffer::list into this struct
+  void decode(buffer::list::iterator& bl) {
     DECODE_START(1, bl);
     ::decode(query_schema, bl);
     ::decode(is_compressed, bl);
@@ -503,14 +502,14 @@ struct idx_fb_entry {
     idx_fb_entry() {}
     idx_fb_entry(uint32_t o, uint32_t l) : off(o), len(l) { }
 
-    void encode(bufferlist& bl) const {
+    void encode(buffer::list& bl) const {
         ENCODE_START(1, 1, bl);
         ::encode(off, bl);
         ::encode(len, bl);
         ENCODE_FINISH(bl);
     }
 
-    void decode(bufferlist::iterator& bl) {
+    void decode(buffer::list::iterator& bl) {
         DECODE_START(1, bl);
         ::decode(off, bl);
         ::decode(len, bl);
@@ -541,7 +540,7 @@ struct idx_rec_entry {
             row_num(row),
             rid(rec_id){}
 
-    void encode(bufferlist& bl) const {
+    void encode(buffer::list& bl) const {
         ENCODE_START(1, 1, bl);
         ::encode(fb_num, bl);
         ::encode(row_num, bl);
@@ -549,7 +548,7 @@ struct idx_rec_entry {
         ENCODE_FINISH(bl);
     }
 
-    void decode(bufferlist::iterator& bl) {
+    void decode(buffer::list::iterator& bl) {
         DECODE_START(1, bl);
         ::decode(fb_num, bl);
         ::decode(row_num, bl);
@@ -584,7 +583,7 @@ struct idx_txt_entry {
             rid(rec_id),
             wpos(wp) {}
 
-    void encode(bufferlist& bl) const {
+    void encode(buffer::list& bl) const {
         ENCODE_START(1, 1, bl);
         ::encode(fb_num, bl);
         ::encode(row_num, bl);
@@ -593,7 +592,7 @@ struct idx_txt_entry {
         ENCODE_FINISH(bl);
     }
 
-    void decode(bufferlist::iterator& bl) {
+    void decode(buffer::list::iterator& bl) {
         DECODE_START(1, bl);
         ::decode(fb_num, bl);
         ::decode(row_num, bl);
@@ -632,7 +631,7 @@ struct idx_op {
         idx_schema_str(schema_str),
         idx_text_delims(delimiters) {}
 
-    void encode(bufferlist& bl) const {
+    void encode(buffer::list& bl) const {
         ENCODE_START(1, 1, bl);
         ::encode(idx_unique, bl);
         ::encode(idx_ignore_stopwords, bl);
@@ -643,7 +642,7 @@ struct idx_op {
         ENCODE_FINISH(bl);
     }
 
-    void decode(bufferlist::iterator& bl) {
+    void decode(buffer::list::iterator& bl) {
         std::string s;
         DECODE_START(1, bl);
         ::decode(idx_unique, bl);
@@ -708,7 +707,7 @@ struct col_stats {
             }
         }
 
-    void encode(bufferlist& bl) const {
+    void encode(buffer::list& bl) const {
         ENCODE_START(1, 1, bl);
         ::encode(col_id, bl);
         ::encode(col_type, bl);
@@ -726,7 +725,7 @@ struct col_stats {
         ENCODE_FINISH(bl);
     }
 
-    void decode(bufferlist::iterator& bl) {
+    void decode(buffer::list::iterator& bl) {
         std::string s;
         DECODE_START(1, bl);
         ::decode(col_id, bl);
@@ -790,8 +789,8 @@ struct inbl_sample_op {
     counter(_counter),
     func_id(_func_id) { }
 
-  // serialize the fields into bufferlist to be sent over the wire
-  void encode(bufferlist& bl) const {
+  // serialize the fields into buffer::list to be sent over the wire
+  void encode(buffer::list& bl) const {
     ENCODE_START(1, 1, bl);
     ::encode(message, bl);
     ::encode(instructions, bl);
@@ -800,8 +799,8 @@ struct inbl_sample_op {
     ENCODE_FINISH(bl);
   }
 
-  // deserialize the fields from the bufferlist into this struct
-  void decode(bufferlist::iterator& bl) {
+  // deserialize the fields from the buffer::list into this struct
+  void decode(buffer::list::iterator& bl) {
     DECODE_START(1, bl);
     ::decode(message, bl);
     ::decode(instructions, bl);
@@ -843,8 +842,8 @@ struct outbl_sample_info {
     read_time_ns(_read_time_ns),
     eval_time_ns(_eval_time_ns) { }
 
-  // serialize the fields into bufferlist to be sent over the wire
-  void encode(bufferlist& bl) const {
+  // serialize the fields into buffer::list to be sent over the wire
+  void encode(buffer::list& bl) const {
     ENCODE_START(1, 1, bl);
     ::encode(message, bl);
     ::encode(rows_processed, bl);
@@ -853,8 +852,8 @@ struct outbl_sample_info {
     ENCODE_FINISH(bl);
   }
 
-  // deserialize the fields from the bufferlist into this struct
-  void decode(bufferlist::iterator& bl) {
+  // deserialize the fields from the buffer::list into this struct
+  void decode(buffer::list::iterator& bl) {
     DECODE_START(1, bl);
     ::decode(message, bl);
     ::decode(rows_processed, bl);
@@ -894,8 +893,8 @@ struct wasm_inbl_sample_op {
     counter(_counter),
     func_id(_func_id) { }
 
-  // serialize the fields into bufferlist to be sent over the wire
-  void encode(bufferlist& bl) const {
+  // serialize the fields into buffer::list to be sent over the wire
+  void encode(buffer::list& bl) const {
     ENCODE_START(1, 1, bl);
     ::encode(message, bl);
     ::encode(instructions, bl);
@@ -904,8 +903,8 @@ struct wasm_inbl_sample_op {
     ENCODE_FINISH(bl);
   }
 
-  // deserialize the fields from the bufferlist into this struct
-  void decode(bufferlist::iterator& bl) {
+  // deserialize the fields from the buffer::list into this struct
+  void decode(buffer::list::iterator& bl) {
     DECODE_START(1, bl);
     ::decode(message, bl);
     ::decode(instructions, bl);
@@ -947,8 +946,8 @@ struct wasm_outbl_sample_info {
     read_time_ns(_read_time_ns),
     eval_time_ns(_eval_time_ns) { }
 
-  // serialize the fields into bufferlist to be sent over the wire
-  void encode(bufferlist& bl) const {
+  // serialize the fields into buffer::list to be sent over the wire
+  void encode(buffer::list& bl) const {
     ENCODE_START(1, 1, bl);
     ::encode(message, bl);
     ::encode(rows_processed, bl);
@@ -957,8 +956,8 @@ struct wasm_outbl_sample_info {
     ENCODE_FINISH(bl);
   }
 
-  // deserialize the fields from the bufferlist into this struct
-  void decode(bufferlist::iterator& bl) {
+  // deserialize the fields from the buffer::list into this struct
+  void decode(buffer::list::iterator& bl) {
     DECODE_START(1, bl);
     ::decode(message, bl);
     ::decode(rows_processed, bl);
@@ -1008,8 +1007,8 @@ struct hep_op {
     query_schema(_query_schema),
     query_preds(_query_preds) { }
 
-  // serialize the fields into bufferlist to be sent over the wire
-  void encode(bufferlist& bl) const {
+  // serialize the fields into buffer::list to be sent over the wire
+  void encode(buffer::list& bl) const {
     ENCODE_START(1, 1, bl);
     ::encode(fastpath, bl);
     ::encode(dataset_name, bl);
@@ -1021,8 +1020,8 @@ struct hep_op {
     ENCODE_FINISH(bl);
   }
 
-  // deserialize the fields from the bufferlist into this struct
-  void decode(bufferlist::iterator& bl) {
+  // deserialize the fields from the buffer::list into this struct
+  void decode(buffer::list::iterator& bl) {
     DECODE_START(1, bl);
     ::decode(fastpath, bl);
     ::decode(dataset_name, bl);
@@ -1070,8 +1069,8 @@ struct lockobj_info {
     table_name(_table_name),
     table_group(_table_group) { }
 
-  // serialize the fields into bufferlist to be sent over the wire
-  void encode(bufferlist& bl) const {
+  // serialize the fields into buffer::list to be sent over the wire
+  void encode(buffer::list& bl) const {
     ENCODE_START(1, 1, bl);
     ::encode(table_busy, bl);
     ::encode(num_objs, bl);
@@ -1080,8 +1079,8 @@ struct lockobj_info {
     ENCODE_FINISH(bl);
   }
 
-  // deserialize the fields from the bufferlist into this struct
-  void decode(bufferlist::iterator& bl) {
+  // deserialize the fields from the buffer::list into this struct
+  void decode(buffer::list::iterator& bl) {
     DECODE_START(1, bl);
     ::decode(table_busy, bl);
     ::decode(num_objs, bl);
@@ -1122,8 +1121,8 @@ struct cls_info {
     push_back_predicates(_push_back_predicates),
     push_back_reason(_push_back_reason) { }
 
-  // serialize the fields into bufferlist to be sent over the wire
-  void encode(bufferlist& bl) const {
+  // serialize the fields into buffer::list to be sent over the wire
+  void encode(buffer::list& bl) const {
     ENCODE_START(1, 1, bl);
     ::encode(read_ns, bl);
     ::encode(eval_ns, bl);
@@ -1132,8 +1131,8 @@ struct cls_info {
     ENCODE_FINISH(bl);
   }
 
-  // deserialize the fields from the bufferlist into this struct
-  void decode(bufferlist::iterator& bl) {
+  // deserialize the fields from the buffer::list into this struct
+  void decode(buffer::list::iterator& bl) {
     DECODE_START(1, bl);
     ::decode(read_ns, bl);
     ::decode(eval_ns, bl);
